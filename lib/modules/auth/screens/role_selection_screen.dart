@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
+import '../../../core/providers/auth_provider.dart';
 
 class RoleSelectionScreen extends StatefulWidget {
   const RoleSelectionScreen({super.key});
@@ -13,16 +15,61 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
   @override
   void initState() {
     super.initState();
-    // Hide status bar and navigation bar for fullscreen experience
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.immersiveSticky,
       overlays: [],
     );
+    
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkAuthenticationStatus();
+    });
+  }
+
+  void _checkAuthenticationStatus() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    print('🔍 ROLE SELECTION - Authentication Status:');
+    print('  - isAuthenticated: ${authProvider.isAuthenticated}');
+    print('  - currentUser: ${authProvider.currentUser?.uid ?? 'null'}');
+    print('  - userData: ${authProvider.userData?.toString() ?? 'null'}');
+    print('  - authState: ${authProvider.authState}');
+    
+    if (authProvider.isAuthenticated && authProvider.userData != null) {
+      print('✅ User is logged in as ${authProvider.userData!.userType}');
+    } else {
+      print('❌ User is not authenticated or userData is null');
+    }
+  }
+
+  void _handleDriverTap() {
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    
+    // Debug authentication state
+    print('🔍 DEBUG - Authentication check:');
+    print('  - isAuthenticated: ${authProvider.isAuthenticated}');
+    print('  - currentUser: ${authProvider.currentUser?.uid ?? 'null'}');
+    print('  - userData: ${authProvider.userData?.toString() ?? 'null'}');
+    print('  - userType: ${authProvider.userData?.userType ?? 'null'}');
+    
+    // More robust authentication check
+    if (authProvider.isAuthenticated && 
+        authProvider.currentUser != null && 
+        authProvider.userData != null && 
+        authProvider.userData!.userType == 'driver') {
+      print('✅ Authenticated driver detected, going to driver dashboard');
+      context.go('/driver');
+    } else {
+      print('❌ Not authenticated as driver, redirecting to login');
+      // Clear any cached auth state to ensure fresh login
+      if (authProvider.isAuthenticated) {
+        authProvider.signOut();
+      }
+      context.go('/driver-login');
+    }
   }
 
   @override
   void dispose() {
-    // Restore system UI when leaving this screen
     SystemChrome.setEnabledSystemUIMode(
       SystemUiMode.manual,
       overlays: SystemUiOverlay.values,
@@ -32,141 +79,172 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      // Remove app bar completely
-      body: Container(
-        width: double.infinity,
-        height: double.infinity,
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              Colors.blue.shade800,
-              Colors.blue.shade600,
-              Colors.blue.shade400,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 24.0),
-            child: Column(
-              children: [
-                // Top spacing
-                const SizedBox(height: 60),
-                
-                // App Title Section
-                Column(
+    return Consumer<AuthProvider>(
+      builder: (context, authProvider, child) {
+        return Scaffold(
+          body: Container(
+            width: double.infinity,
+            height: double.infinity,
+            decoration: BoxDecoration(
+              gradient: LinearGradient(
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
+                colors: [
+                  Colors.blue.shade800,
+                  Colors.blue.shade600,
+                  Colors.blue.shade400,
+                ],
+              ),
+            ),
+            child: SafeArea(
+              child: Padding(
+                padding: const EdgeInsets.all(24.0),
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // App Icon
+                    // Debug info and logout section
+                    if (authProvider.isAuthenticated) ...[
+                      Container(
+                        margin: const EdgeInsets.only(bottom: 20),
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withAlpha(51),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Column(
+                          children: [
+                            Text(
+                              '🔍 DEBUG: Currently logged in as:',
+                              style: TextStyle(
+                                color: Colors.white.withAlpha(179),
+                                fontSize: 12,
+                              ),
+                            ),
+                            const SizedBox(height: 4),
+                            Text(
+                              '${authProvider.userData?.name ?? 'Unknown'} (${authProvider.userData?.userType ?? 'Unknown'})',
+                              style: const TextStyle(
+                                color: Colors.white,
+                                fontWeight: FontWeight.bold,
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            ElevatedButton.icon(
+                              onPressed: () async {
+                                await authProvider.signOut();
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text('Logged out successfully'),
+                                    backgroundColor: Colors.green,
+                                  ),
+                                );
+                              },
+                              icon: const Icon(Icons.logout, size: 16),
+                              label: const Text('Logout'),
+                              style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.red,
+                                foregroundColor: Colors.white,
+                                minimumSize: const Size(120, 36),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ],
+                    
+                    // Logo and welcome text
                     Container(
-                      padding: const EdgeInsets.all(20),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.2),
-                            blurRadius: 20,
-                            offset: const Offset(0, 10),
+                      margin: const EdgeInsets.only(bottom: 60),
+                      child: Column(
+                        children: [
+                          // App logo/icon
+                          Container(
+                            padding: const EdgeInsets.all(20),
+                            decoration: BoxDecoration(
+                              color: Colors.white.withAlpha(38),
+                              borderRadius: BorderRadius.circular(25),
+                            ),
+                            child: const Icon(
+                              Icons.directions_bus_rounded,
+                              size: 60,
+                              color: Colors.white,
+                            ),
+                          ),
+                          
+                          const SizedBox(height: 24),
+                          
+                          const Text(
+                            'Welcome to JeepGo',
+                            style: TextStyle(
+                              fontSize: 28,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          
+                          const SizedBox(height: 12),
+                          
+                          Text(
+                            'Choose your role to get started',
+                            style: TextStyle(
+                              fontSize: 16,
+                              color: Colors.white.withAlpha(128),
+                              fontWeight: FontWeight.w400,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.directions_bus,
-                        size: 60,
-                        color: Colors.blue,
-                      ),
                     ),
-                    const SizedBox(height: 24),
                     
-                    // App Title
-                    const Text(
-                      'Jeepney Tracker',
-                      style: TextStyle(
-                        fontSize: 32,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                        letterSpacing: 1.2,
+                    // Role cards
+                    Expanded(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          // Commuter card
+                          _buildRoleCard(
+                            title: 'Commuter',
+                            subtitle: 'Find rides and track your journey',
+                            icon: Icons.person,
+                            color: Colors.green,
+                            onTap: () => context.go('/commuter'),
+                          ),
+                          
+                          const SizedBox(height: 20),
+                          
+                          // Driver card
+                          _buildRoleCard(
+                            title: 'Driver',
+                            subtitle: 'Provide rides and manage your route',
+                            icon: Icons.drive_eta,
+                            color: Colors.orange,
+                            onTap: () => _handleDriverTap(),
+                          ),
+                        ],
                       ),
-                      textAlign: TextAlign.center,
                     ),
-                    const SizedBox(height: 12),
                     
-                    // Subtitle
-                    Text(
-                      'Real-time jeepney tracking for everyone',
-                      style: TextStyle(
-                        fontSize: 16,
-                        color: Colors.white.withOpacity(0.9),
-                        fontWeight: FontWeight.w300,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ],
-                ),
-                
-                // Expanded content area
-                Expanded(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      const SizedBox(height: 40),
-                      
-                      // Welcome text
-                      Text(
-                        'Choose your role to get started',
+                    // Footer
+                    Container(
+                      margin: const EdgeInsets.only(top: 40),
+                      child: Text(
+                        '© 2025 JeepGo Transport System',
                         style: TextStyle(
-                          fontSize: 20,
-                          color: Colors.white.withOpacity(0.9),
-                          fontWeight: FontWeight.w500,
+                          fontSize: 12,
+                          color: Colors.white.withAlpha(153),
                         ),
                         textAlign: TextAlign.center,
                       ),
-                      
-                      const SizedBox(height: 40),
-                      
-                      // Role Selection Cards
-                      _buildRoleCard(
-                        title: 'Driver',
-                        subtitle: 'Track your jeepney and manage passengers',
-                        icon: Icons.person_pin_circle,
-                        color: Colors.orange,
-                        onTap: () => context.go('/driver-login'),
-                      ),
-                      
-                      const SizedBox(height: 20),
-                      
-                      _buildRoleCard(
-                        title: 'Commuter',
-                        subtitle: 'Find and track nearby jeepneys',
-                        icon: Icons.person,
-                        color: Colors.green,
-                        onTap: () => context.go('/commuter'),
-                      ),
-                    ],
-                  ),
-                ),
-                
-                // Bottom branding
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 30),
-                  child: Text(
-                    'Powered by Real-time Technology',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.white.withOpacity(0.7),
-                      fontWeight: FontWeight.w300,
                     ),
-                    textAlign: TextAlign.center,
-                  ),
+                  ],
                 ),
-              ],
+              ),
             ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 
@@ -192,7 +270,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
               borderRadius: BorderRadius.circular(20),
               boxShadow: [
                 BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
+                  color: Colors.black.withAlpha(50),
                   blurRadius: 20,
                   offset: const Offset(0, 10),
                 ),
@@ -204,7 +282,7 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                 Container(
                   padding: const EdgeInsets.all(16),
                   decoration: BoxDecoration(
-                    color: color.withOpacity(0.1),
+                    color: color.withAlpha(50),
                     borderRadius: BorderRadius.circular(16),
                   ),
                   child: Icon(
