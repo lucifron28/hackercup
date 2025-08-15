@@ -94,7 +94,7 @@ class RoleSelectionScreen extends StatelessWidget {
                     context,
                     UserRole.driver,
                     Icons.drive_eta,
-                    () => context.go('/driver'),
+                    () => context.go('/driver-login'),
                   ),
                   const SizedBox(height: 16),
                   _buildRoleCard(
