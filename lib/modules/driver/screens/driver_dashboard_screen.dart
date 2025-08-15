@@ -230,39 +230,80 @@ class _DriverDashboardScreenState extends State<DriverDashboardScreen> {
   }
 
   Future<void> _logout(BuildContext context, DriverProvider driverProvider, AuthProvider authProvider) async {
-    try {
-      // Show loading indicator
-      showDialog(
-        context: context,
-        barrierDismissible: false,
-        builder: (context) => const Center(
-          child: CircularProgressIndicator(),
+    final navigator = Navigator.of(context);
+    final scaffoldMessenger = ScaffoldMessenger.of(context);
+    
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) => const AlertDialog(
+        content: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            CircularProgressIndicator(),
+            SizedBox(width: 16),
+            Text('Signing out...'),
+          ],
         ),
+      ),
+    );
+
+    try {
+      // Stop driver service first with timeout
+      await driverProvider.stopService().timeout(
+        const Duration(seconds: 10),
+        onTimeout: () {
+          print('⚠️ Driver service stop timed out');
+        },
+      );
+      
+      // Sign out with timeout
+      await authProvider.signOut().timeout(
+        const Duration(seconds: 15),
+        onTimeout: () {
+          print('⚠️ Auth signout timed out, forcing logout');
+        },
       );
 
-      // Stop driver service first
-      await driverProvider.stopService();
+      print('✅ Logout completed successfully');
       
-      // Sign out
-      await authProvider.signOut();
-
-      // Close loading indicator
-      if (mounted) Navigator.of(context).pop();
+      // Close loading indicator safely
+      try {
+        navigator.pop(); // Close loading dialog
+      } catch (e) {
+        print('⚠️ Could not close loading dialog: $e');
+      }
 
       // Navigate to role selection
-      if (mounted) context.go('/role-selection');
+      try {
+        context.go('/role-selection');
+      } catch (e) {
+        print('⚠️ Navigation error: $e');
+      }
     } catch (e) {
-      // Close loading indicator
-      if (mounted) Navigator.of(context).pop();
+      print('❌ Logout error: $e');
       
-      // Show error
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
+      // Close loading indicator safely
+      try {
+        navigator.pop(); // Close loading dialog
+      } catch (e) {
+        print('⚠️ Could not close loading dialog: $e');
+      }
+      
+      // Force navigation even if logout partially failed
+      try {
+        context.go('/role-selection');
+        
+        // Show error but don't block navigation
+        scaffoldMessenger.showSnackBar(
           SnackBar(
-            content: Text('Logout failed: $e'),
-            backgroundColor: Colors.red,
+            content: Text('Logout completed with issues: $e'),
+            backgroundColor: Colors.orange,
+            duration: const Duration(seconds: 3),
           ),
         );
+      } catch (e) {
+        print('⚠️ Navigation/SnackBar error: $e');
       }
     }
   }
