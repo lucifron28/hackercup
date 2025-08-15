@@ -65,8 +65,11 @@ class FirebaseRealtimeService {
   /// Update driver status (available/full)
   static Future<void> updateDriverStatus(String driverId, String status) async {
     try {
+      final isAccepting = status == 'available';
+      
       await _firestore.collection('live_locations').doc(driverId).update({
         'status': status, // available, full, offline
+        'isAcceptingPassengers': isAccepting,
         'lastUpdated': FieldValue.serverTimestamp(),
       });
 
@@ -92,7 +95,13 @@ class FirebaseRealtimeService {
         'isAcceptingPassengers': true,
       });
 
-      // Update driver status
+      // Update driver status and add route information to live_locations
+      await _firestore.collection('live_locations').doc(driverId).update({
+        'routeId': routeId,
+        'tripId': tripRef.id,
+        'isAcceptingPassengers': true,
+      });
+      
       await updateDriverStatus(driverId, 'available');
 
       _logger.i('🛣️ Trip started: ${tripRef.id}');
