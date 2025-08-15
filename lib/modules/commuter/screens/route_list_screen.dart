@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/services/firebase_realtime_service.dart';
 
 class RouteListScreen extends StatefulWidget {
   const RouteListScreen({super.key});
@@ -8,50 +9,59 @@ class RouteListScreen extends StatefulWidget {
 }
 
 class _RouteListScreenState extends State<RouteListScreen> {
-  final List<Map<String, dynamic>> _routes = [
-    {
-      'name': 'Divisoria - Fairview',
-      'fare': 12.00,
-      'distance': '28.5 km',
-      'duration': '45-60 min',
-      'activeJeepneys': 15,
-      'color': Colors.blue,
-    },
-    {
-      'name': 'Cubao - Antipolo',
-      'fare': 15.00,
-      'distance': '32.1 km',
-      'duration': '50-70 min',
-      'activeJeepneys': 12,
-      'color': Colors.green,
-    },
-    {
-      'name': 'Quiapo - Sta. Mesa',
-      'fare': 10.00,
-      'distance': '18.2 km',
-      'duration': '30-40 min',
-      'activeJeepneys': 8,
-      'color': Colors.orange,
-    },
-    {
-      'name': 'Alabang - Makati',
-      'fare': 18.00,
-      'distance': '25.7 km',
-      'duration': '40-55 min',
-      'activeJeepneys': 20,
-      'color': Colors.purple,
-    },
-    {
-      'name': 'Pasig - Ortigas',
-      'fare': 11.00,
-      'distance': '15.3 km',
-      'duration': '25-35 min',
-      'activeJeepneys': 10,
-      'color': Colors.red,
-    },
-  ];
-
+  List<Map<String, dynamic>> _routes = [];
   String _searchQuery = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadRoutes();
+  }
+
+  void _loadRoutes() {
+    FirebaseRealtimeService.getActiveDriversStream().listen((drivers) {
+      // Group drivers by route
+      Map<String, List<Map<String, dynamic>>> routeGroups = {};
+      
+      for (var driver in drivers) {
+        String routeId = driver['routeId'] ?? 'Unknown Route';
+        if (!routeGroups.containsKey(routeId)) {
+          routeGroups[routeId] = [];
+        }
+        routeGroups[routeId]!.add(driver);
+      }
+      
+      // Convert to route list
+      List<Map<String, dynamic>> routes = [];
+      List<Color> colors = [
+        Colors.blue,
+        Colors.green,
+        Colors.orange,
+        Colors.purple,
+        Colors.red,
+        Colors.teal,
+        Colors.indigo,
+        Colors.pink,
+      ];
+      
+      int colorIndex = 0;
+      routeGroups.forEach((routeId, routeDrivers) {
+        routes.add({
+          'name': routeId,
+          'fare': 12.00, // Default fare - could be configured per route
+          'distance': '25.0 km', // Default distance - could be calculated
+          'duration': '40-50 min', // Default duration - could be calculated
+          'activeJeepneys': routeDrivers.length,
+          'color': colors[colorIndex % colors.length],
+        });
+        colorIndex++;
+      });
+      
+      setState(() {
+        _routes = routes;
+      });
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
