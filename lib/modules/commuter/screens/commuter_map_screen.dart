@@ -3,6 +3,7 @@ import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/services/firebase_realtime_service.dart';
+import '../../../core/utils/route_utils.dart';
 
 class CommuterMapScreen extends StatefulWidget {
   const CommuterMapScreen({super.key});
@@ -58,9 +59,10 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
     FirebaseRealtimeService.getActiveDriversStream().listen((drivers) {
       setState(() {
         _jeepneyLocations = drivers.map((driver) {
+          String routeId = driver['routeId'] ?? '';
           return {
             'id': driver['id'],
-            'route': driver['routeId'] ?? 'Unknown Route',
+            'route': RouteUtils.getRouteName(routeId),
             'position': LatLng(
               driver['latitude'] ?? 14.5995,
               driver['longitude'] ?? 120.9842,
@@ -101,13 +103,41 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
         actions: [
           IconButton(
             icon: const Icon(Icons.my_location),
-            onPressed: () {
+            onPressed: () async {
               // Center map on user location
               if (_userLocation != null) {
                 _mapController.move(
                   LatLng(_userLocation!.latitude, _userLocation!.longitude),
                   15.0,
                 );
+                ScaffoldMessenger.of(context).showSnackBar(
+                  const SnackBar(
+                    content: Text('Centered on your location'),
+                    duration: Duration(seconds: 1),
+                  ),
+                );
+              } else {
+                // Try to get location again
+                await _getUserLocation();
+                if (_userLocation != null) {
+                  _mapController.move(
+                    LatLng(_userLocation!.latitude, _userLocation!.longitude),
+                    15.0,
+                  );
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Centered on your location'),
+                      duration: Duration(seconds: 1),
+                    ),
+                  );
+                } else {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('Unable to get your location. Please check permissions.'),
+                      backgroundColor: Colors.orange,
+                    ),
+                  );
+                }
               }
             },
           ),
@@ -138,37 +168,66 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
                 userAgentPackageName: 'com.jeepneytracker.app',
               ),
               MarkerLayer(
-                markers: _jeepneyLocations.map((jeepney) {
-                  return Marker(
-                    point: jeepney['position'],
-                    width: 40,
-                    height: 40,
-                    child: GestureDetector(
-                      onTap: () {
-                        _showJeepneyInfo(jeepney);
-                      },
+                markers: [
+                  // User location marker
+                  if (_userLocation != null)
+                    Marker(
+                      point: LatLng(_userLocation!.latitude, _userLocation!.longitude),
+                      width: 50,
+                      height: 50,
                       child: Container(
                         decoration: BoxDecoration(
-                          color: _getJeepneyColor(jeepney['status']),
+                          color: Colors.blue,
                           shape: BoxShape.circle,
-                          border: Border.all(color: Colors.white, width: 2),
+                          border: Border.all(color: Colors.white, width: 3),
                           boxShadow: [
                             BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 4,
-                              offset: const Offset(0, 2),
+                              color: Colors.blue.withOpacity(0.3),
+                              blurRadius: 10,
+                              spreadRadius: 5,
                             ),
                           ],
                         ),
                         child: const Icon(
-                          Icons.directions_bus,
+                          Icons.my_location,
                           color: Colors.white,
-                          size: 20,
+                          size: 25,
                         ),
                       ),
                     ),
-                  );
-                }).toList(),
+                  // Jeepney markers
+                  ..._jeepneyLocations.map((jeepney) {
+                    return Marker(
+                      point: jeepney['position'],
+                      width: 40,
+                      height: 40,
+                      child: GestureDetector(
+                        onTap: () {
+                          _showJeepneyInfo(jeepney);
+                        },
+                        child: Container(
+                          decoration: BoxDecoration(
+                            color: _getJeepneyColor(jeepney['status']),
+                            shape: BoxShape.circle,
+                            border: Border.all(color: Colors.white, width: 2),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.directions_bus,
+                            color: Colors.white,
+                            size: 20,
+                          ),
+                        ),
+                      ),
+                    );
+                  }).toList(),
+                ],
               ),
             ],
           ),
@@ -260,36 +319,9 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
+                    _buildLegendItem(Colors.blue, 'Your Location'),
                     _buildLegendItem(Colors.green, 'Available'),
                     _buildLegendItem(Colors.red, 'Full'),
-                  ],
-                ),
-              ),
-            ),
-          ),
-          
-          // Offline Mode Info
-          Positioned(
-            bottom: 16,
-            left: 16,
-            right: 16,
-            child: Card(
-              color: Colors.blue[50],
-              child: Padding(
-                padding: const EdgeInsets.all(12.0),
-                child: Row(
-                  children: [
-                    Icon(Icons.info, color: Colors.blue[700]),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: Text(
-                        'Map tiles are cached for offline use in dead zones',
-                        style: TextStyle(
-                          color: Colors.blue[700],
-                          fontSize: 12,
-                        ),
-                      ),
-                    ),
                   ],
                 ),
               ),
