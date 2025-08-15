@@ -1,0 +1,53 @@
+{
+  "@@locale": "tl",
+  "appTitle": "Jeepney Tracker",
+  "login": "Mag-login",
+  "logout": "Mag-logout",
+  "email": "Email",
+  "password": "Password",
+  "register": "Mag-rehistro",
+  "forgotPassword": "Nakalimutan ang password?",
+  
+  "driverApp": "Driver App",
+  "commuterApp": "Commuter App",
+  "lguDispatcher": "LGU Dispatcher",
+  
+  "startTrip": "Simulan ang Biyahe",
+  "endTrip": "Tapusin ang Biyahe",
+  "availableSeats": "Available na Upuan",
+  "route": "Ruta",
+  "earnings": "Kita",
+  "totalEarnings": "Kabuuang Kita",
+  "dailyEarnings": "Araw-araw na Kita",
+  "adRevenue": "Kita mula sa Ads",
+  
+  "nearbyJeepneys": "Malapit na Jeepney",
+  "routeList": "Mga Ruta",
+  "liveMap": "Live na Mapa",
+  "eta": "ETA",
+  "minutes": "min",
+  "arrivalTime": "Oras ng Pagdating",
+  
+  "gpsEnabled": "GPS Enabled",
+  "gpsDisabled": "GPS Disabled",
+  "connectingToServer": "Kumukonekta sa server...",
+  "serverConnected": "Nakakonekta",
+  "serverDisconnected": "Hindi nakakonekta",
+  
+  "offlineMode": "Offline Mode",
+  "smsKeyword": "SMS: JEEP {route}",
+  "smsInstructions": "Mag-send ng SMS 'JEEP {route}' para makuha ang susunod na 3 ETA",
+  
+  "settings": "Settings",
+  "language": "Wika",
+  "notifications": "Notifications",
+  "mapStyle": "Estilo ng Mapa",
+  
+  "error": "Error",
+  "noInternetConnection": "Walang internet connection",
+  "locationPermissionDenied": "Hindi pinahintulutan ang location",
+  "enableLocationServices": "Pakibukas ang location services",
+  
+  "sdgTitle": "SDG 11.2 - Sustainable Transport",
+  "sdgDescription": "Pagsusulong ng abot-kayang at accessible na transportasyon para sa lahat"
+}

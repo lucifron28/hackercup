@@ -1,0 +1,53 @@
+{
+  "@@locale": "en",
+  "appTitle": "Jeepney Tracker",
+  "login": "Login",
+  "logout": "Logout",
+  "email": "Email",
+  "password": "Password",
+  "register": "Register",
+  "forgotPassword": "Forgot Password?",
+  
+  "driverApp": "Driver App",
+  "commuterApp": "Commuter App",
+  "lguDispatcher": "LGU Dispatcher",
+  
+  "startTrip": "Start Trip",
+  "endTrip": "End Trip",
+  "availableSeats": "Available Seats",
+  "route": "Route",
+  "earnings": "Earnings",
+  "totalEarnings": "Total Earnings",
+  "dailyEarnings": "Daily Earnings",
+  "adRevenue": "Ad Revenue",
+  
+  "nearbyJeepneys": "Nearby Jeepneys",
+  "routeList": "Routes",
+  "liveMap": "Live Map",
+  "eta": "ETA",
+  "minutes": "min",
+  "arrivalTime": "Arrival Time",
+  
+  "gpsEnabled": "GPS Enabled",
+  "gpsDisabled": "GPS Disabled",
+  "connectingToServer": "Connecting to server...",
+  "serverConnected": "Connected",
+  "serverDisconnected": "Disconnected",
+  
+  "offlineMode": "Offline Mode",
+  "smsKeyword": "SMS: JEEP {route}",
+  "smsInstructions": "Send SMS 'JEEP {route}' to get next 3 ETAs",
+  
+  "settings": "Settings",
+  "language": "Language",
+  "notifications": "Notifications",
+  "mapStyle": "Map Style",
+  
+  "error": "Error",
+  "noInternetConnection": "No internet connection",
+  "locationPermissionDenied": "Location permission denied",
+  "enableLocationServices": "Please enable location services",
+  
+  "sdgTitle": "SDG 11.2 - Sustainable Transport",
+  "sdgDescription": "Advancing affordable and accessible transport for all"
+}
