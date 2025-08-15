@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:geolocator/geolocator.dart';
 import '../../../core/services/firebase_realtime_service.dart';
+import '../../../core/utils/route_utils.dart';
 
 class CommuterHomeScreen extends StatefulWidget {
   const CommuterHomeScreen({super.key});
@@ -73,7 +74,7 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
         }
         
         nearbyDrivers.add({
-          'route': driver['routeId'] ?? 'Unknown Route',
+          'route': RouteUtils.getRouteName(driver['routeId'] ?? ''),
           'eta': eta,
           'status': driver['isAcceptingPassengers'] == true ? 'Available' : 'Full',
           'distance': '${distance.toStringAsFixed(1)} km',
@@ -162,48 +163,6 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Quick SMS Info
-          Card(
-            color: Colors.blue[50],
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.sms, color: Colors.blue[700]),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Text(
-                          'Offline Mode Available',
-                          style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                            color: Colors.blue[800],
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Send SMS "JEEP [ROUTE]" to get next 3 ETAs',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.blue[600],
-                    ),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    'Example: "JEEP Divisoria-Fairview"',
-                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                      color: Colors.blue[500],
-                      fontStyle: FontStyle.italic,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ),
-          
           const SizedBox(height: 20),
           
           Text(
@@ -375,42 +334,6 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
                 ),
               ),
             ],
-          ),
-          const SizedBox(height: 16),
-          Card(
-            color: Colors.blue[50],
-            child: Padding(
-              padding: const EdgeInsets.all(16.0),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Icon(Icons.sms, color: Colors.blue[700], size: 20),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: Text(
-                          'Try SMS Query',
-                          style: TextStyle(
-                            color: Colors.blue[800],
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-                  Text(
-                    'Send "JEEP [ROUTE NAME]" via SMS to get real-time updates even when offline.',
-                    style: TextStyle(
-                      color: Colors.blue[600],
-                      fontSize: 12,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ],
-              ),
-            ),
           ),
         ],
       ),
