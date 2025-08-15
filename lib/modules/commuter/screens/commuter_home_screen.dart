@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../../core/services/firebase_realtime_service.dart';
 
 class CommuterHomeScreen extends StatefulWidget {
   const CommuterHomeScreen({super.key});
@@ -10,31 +12,86 @@ class CommuterHomeScreen extends StatefulWidget {
 
 class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
   int _selectedIndex = 0;
-
-  final List<Map<String, dynamic>> _nearbyJeepneys = [
-    {
-      'route': 'Divisoria - Fairview',
-      'eta': 5,
-      'seats': 8,
-      'distance': '0.2 km',
-    },
-    {
-      'route': 'Cubao - Antipolo',
-      'eta': 12,
-      'seats': 3,
-      'distance': '0.5 km',
-    },
-    {
-      'route': 'Quiapo - Sta. Mesa',
-      'eta': 8,
-      'seats': 12,
-      'distance': '0.3 km',
-    },
-  ];
+  List<Map<String, dynamic>> _nearbyJeepneys = [];
+  Position? _userLocation;
 
   @override
   void initState() {
     super.initState();
+    _getUserLocation();
+    _loadNearbyJeepneys();
+  }
+
+  Future<void> _getUserLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _userLocation = position;
+      });
+      
+      _loadNearbyJeepneys();
+    } catch (e) {
+      print('Error getting user location: $e');
+    }
+  }
+
+  void _loadNearbyJeepneys() {
+    FirebaseRealtimeService.getActiveDriversStream().listen((drivers) {
+      List<Map<String, dynamic>> nearbyDrivers = [];
+      
+      for (var driver in drivers) {
+        double distance = 0.0;
+        int eta = 5;
+        
+        if (_userLocation != null) {
+          double distanceInMeters = Geolocator.distanceBetween(
+            _userLocation!.latitude,
+            _userLocation!.longitude,
+            driver['latitude'] ?? 14.5995,
+            driver['longitude'] ?? 120.9842,
+          );
+          
+          distance = distanceInMeters / 1000; // Convert to km
+          eta = (distance / 20 * 60).round().clamp(1, 60); // ETA in minutes
+        }
+        
+        nearbyDrivers.add({
+          'route': driver['routeId'] ?? 'Unknown Route',
+          'eta': eta,
+          'status': driver['isAcceptingPassengers'] == true ? 'Available' : 'Full',
+          'distance': '${distance.toStringAsFixed(1)} km',
+          'driverName': driver['driverName'] ?? 'Unknown Driver',
+        });
+      }
+      
+      // Sort by distance and take nearest 5
+      nearbyDrivers.sort((a, b) {
+        double distA = double.parse(a['distance'].toString().split(' ')[0]);
+        double distB = double.parse(b['distance'].toString().split(' ')[0]);
+        return distA.compareTo(distB);
+      });
+      
+      setState(() {
+        _nearbyJeepneys = nearbyDrivers.take(5).toList();
+      });
+    });
   }
 
   @override
@@ -159,88 +216,200 @@ class _CommuterHomeScreenState extends State<CommuterHomeScreen> {
           const SizedBox(height: 12),
           
           Expanded(
-            child: ListView.builder(
-              itemCount: _nearbyJeepneys.length,
-              itemBuilder: (context, index) {
-                final jeepney = _nearbyJeepneys[index];
-                return Card(
-                  margin: const EdgeInsets.only(bottom: 12),
-                  child: Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                            color: Theme.of(context).primaryColor.withOpacity(0.1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: Icon(
-                            Icons.directions_bus,
-                            color: Theme.of(context).primaryColor,
-                            size: 32,
-                          ),
-                        ),
-                        
-                        const SizedBox(width: 16),
-                        
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
+            child: _nearbyJeepneys.isEmpty 
+                ? _buildNoJeepneysView()
+                : ListView.builder(
+                    itemCount: _nearbyJeepneys.length,
+                    itemBuilder: (context, index) {
+                      final jeepney = _nearbyJeepneys[index];
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 12),
+                        child: Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: Row(
                             children: [
-                              Text(
-                                jeepney['route'],
-                                style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                                  fontWeight: FontWeight.bold,
+                              Container(
+                                padding: const EdgeInsets.all(12),
+                                decoration: BoxDecoration(
+                                  color: Theme.of(context).primaryColor.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                ),
+                                child: Icon(
+                                  Icons.directions_bus,
+                                  color: Theme.of(context).primaryColor,
+                                  size: 32,
                                 ),
                               ),
-                              const SizedBox(height: 4),
-                              Text(
-                                '${jeepney['distance']} away',
-                                style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                  color: Colors.grey[600],
+                              
+                              const SizedBox(width: 16),
+                              
+                              Expanded(
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                    Text(
+                                      jeepney['route'],
+                                      style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                                        fontWeight: FontWeight.bold,
+                                      ),
+                                    ),
+                                    const SizedBox(height: 4),
+                                    Text(
+                                      '${jeepney['distance']} away',
+                                      style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                        color: Colors.grey[600],
+                                      ),
+                                    ),
+                                  ],
                                 ),
+                              ),
+                              
+                              Column(
+                                crossAxisAlignment: CrossAxisAlignment.end,
+                                children: [
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 12,
+                                      vertical: 6,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.green,
+                                      borderRadius: BorderRadius.circular(16),
+                                    ),
+                                    child: Text(
+                                      '${jeepney['eta']} min',
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 12,
+                                      ),
+                                    ),
+                                  ),
+                                  const SizedBox(height: 4),
+                                  Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      horizontal: 8,
+                                      vertical: 2,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: jeepney['status'] == 'Available' ? Colors.green : Colors.red,
+                                      borderRadius: BorderRadius.circular(12),
+                                    ),
+                                    child: Text(
+                                      jeepney['status'],
+                                      style: const TextStyle(
+                                        color: Colors.white,
+                                        fontWeight: FontWeight.bold,
+                                        fontSize: 10,
+                                      ),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ],
                           ),
                         ),
-                        
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.end,
-                          children: [
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                horizontal: 12,
-                                vertical: 6,
-                              ),
-                              decoration: BoxDecoration(
-                                color: Colors.green,
-                                borderRadius: BorderRadius.circular(16),
-                              ),
-                              child: Text(
-                                '${jeepney['eta']} min',
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(height: 4),
-                            Text(
-                              '${jeepney['seats']} seats',
-                              style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                                color: jeepney['seats'] < 5 ? Colors.red : Colors.green,
-                                fontWeight: FontWeight.bold,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
+                      );
+                    },
                   ),
-                );
-              },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildNoJeepneysView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(
+              color: Colors.grey[100],
+              shape: BoxShape.circle,
+            ),
+            child: Icon(
+              Icons.directions_bus_filled_outlined,
+              size: 64,
+              color: Colors.grey[400],
+            ),
+          ),
+          const SizedBox(height: 24),
+          Text(
+            'No Jeepneys Available',
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+              fontWeight: FontWeight.bold,
+              color: Colors.grey[600],
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'There are currently no active jeepneys in your area.',
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+              color: Colors.grey[500],
+            ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 24),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+            children: [
+              OutlinedButton.icon(
+                onPressed: () {
+                  _getUserLocation();
+                  _loadNearbyJeepneys();
+                },
+                icon: const Icon(Icons.refresh, size: 16),
+                label: const Text('Refresh'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
+              ElevatedButton.icon(
+                onPressed: () => context.push('/commuter/map'),
+                icon: const Icon(Icons.map, size: 16),
+                label: const Text('View Map'),
+                style: ElevatedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Card(
+            color: Colors.blue[50],
+            child: Padding(
+              padding: const EdgeInsets.all(16.0),
+              child: Column(
+                children: [
+                  Row(
+                    children: [
+                      Icon(Icons.sms, color: Colors.blue[700], size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          'Try SMS Query',
+                          style: TextStyle(
+                            color: Colors.blue[800],
+                            fontWeight: FontWeight.bold,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Send "JEEP [ROUTE NAME]" via SMS to get real-time updates even when offline.',
+                    style: TextStyle(
+                      color: Colors.blue[600],
+                      fontSize: 12,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                ],
+              ),
             ),
           ),
         ],

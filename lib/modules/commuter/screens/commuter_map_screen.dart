@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
+import 'package:geolocator/geolocator.dart';
+import '../../../core/services/firebase_realtime_service.dart';
 
 class CommuterMapScreen extends StatefulWidget {
   const CommuterMapScreen({super.key});
@@ -11,31 +13,83 @@ class CommuterMapScreen extends StatefulWidget {
 
 class _CommuterMapScreenState extends State<CommuterMapScreen> {
   final MapController _mapController = MapController();
-  
-  // Sample jeepney locations (Manila area)
-  final List<Map<String, dynamic>> _jeepneyLocations = [
-    {
-      'id': 'jeep_001',
-      'route': 'Divisoria - Fairview',
-      'position': const LatLng(14.5995, 120.9842), // Manila
-      'seats': 8,
-      'eta': 5,
-    },
-    {
-      'id': 'jeep_002',
-      'route': 'Cubao - Antipolo',
-      'position': const LatLng(14.6091, 121.0223), // Quezon City
-      'seats': 3,
-      'eta': 12,
-    },
-    {
-      'id': 'jeep_003',
-      'route': 'Quiapo - Sta. Mesa',
-      'position': const LatLng(14.5932, 120.9822), // Quiapo
-      'seats': 12,
-      'eta': 8,
-    },
-  ];
+  List<Map<String, dynamic>> _jeepneyLocations = [];
+  Position? _userLocation;
+
+  @override
+  void initState() {
+    super.initState();
+    _getUserLocation();
+    _loadActiveDrivers();
+  }
+
+  Future<void> _getUserLocation() async {
+    try {
+      bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+      if (!serviceEnabled) {
+        return;
+      }
+
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        return;
+      }
+
+      Position position = await Geolocator.getCurrentPosition();
+      setState(() {
+        _userLocation = position;
+      });
+      
+      // Center map on user location
+      _mapController.move(LatLng(position.latitude, position.longitude), 15.0);
+    } catch (e) {
+      print('Error getting user location: $e');
+    }
+  }
+
+  void _loadActiveDrivers() {
+    FirebaseRealtimeService.getActiveDriversStream().listen((drivers) {
+      setState(() {
+        _jeepneyLocations = drivers.map((driver) {
+          return {
+            'id': driver['id'],
+            'route': driver['routeId'] ?? 'Unknown Route',
+            'position': LatLng(
+              driver['latitude'] ?? 14.5995,
+              driver['longitude'] ?? 120.9842,
+            ),
+            'status': driver['isAcceptingPassengers'] == true ? 'Available' : 'Full',
+            'eta': _calculateETA(driver),
+            'driverName': driver['driverName'] ?? 'Unknown Driver',
+          };
+        }).toList();
+      });
+    });
+  }
+
+  int _calculateETA(Map<String, dynamic> driver) {
+    if (_userLocation == null) return 0;
+    
+    double distanceInMeters = Geolocator.distanceBetween(
+      _userLocation!.latitude,
+      _userLocation!.longitude,
+      driver['latitude'] ?? 14.5995,
+      driver['longitude'] ?? 120.9842,
+    );
+    
+    // Rough ETA calculation: distance in km / average speed (20 km/h in traffic)
+    double distanceInKm = distanceInMeters / 1000;
+    int etaInMinutes = (distanceInKm / 20 * 60).round();
+    
+    return etaInMinutes.clamp(1, 60); // Between 1 and 60 minutes
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -49,13 +103,19 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
             icon: const Icon(Icons.my_location),
             onPressed: () {
               // Center map on user location
-              _mapController.move(const LatLng(14.5995, 120.9842), 15.0);
+              if (_userLocation != null) {
+                _mapController.move(
+                  LatLng(_userLocation!.latitude, _userLocation!.longitude),
+                  15.0,
+                );
+              }
             },
           ),
           IconButton(
             icon: const Icon(Icons.refresh),
             onPressed: () {
               // Refresh jeepney locations
+              _loadActiveDrivers();
               setState(() {});
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Jeepney locations updated')),
@@ -89,7 +149,7 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
                       },
                       child: Container(
                         decoration: BoxDecoration(
-                          color: _getJeepneyColor(jeepney['seats']),
+                          color: _getJeepneyColor(jeepney['status']),
                           shape: BoxShape.circle,
                           border: Border.all(color: Colors.white, width: 2),
                           boxShadow: [
@@ -113,6 +173,75 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
             ],
           ),
           
+          // No Jeepneys Overlay
+          if (_jeepneyLocations.isEmpty)
+            Positioned.fill(
+              child: Container(
+                color: Colors.black.withOpacity(0.3),
+                child: Center(
+                  child: Card(
+                    margin: const EdgeInsets.all(32),
+                    child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(16),
+                            decoration: BoxDecoration(
+                              color: Colors.grey[100],
+                              shape: BoxShape.circle,
+                            ),
+                            child: Icon(
+                              Icons.directions_bus_filled_outlined,
+                              size: 48,
+                              color: Colors.grey[400],
+                            ),
+                          ),
+                          const SizedBox(height: 16),
+                          Text(
+                            'No Active Jeepneys',
+                            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.grey[700],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            'There are currently no jeepneys operating in this area. Try refreshing or check back later.',
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                              color: Colors.grey[600],
+                            ),
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                            children: [
+                              OutlinedButton.icon(
+                                onPressed: () {
+                                  _loadActiveDrivers();
+                                  setState(() {});
+                                },
+                                icon: const Icon(Icons.refresh, size: 16),
+                                label: const Text('Refresh'),
+                              ),
+                              ElevatedButton.icon(
+                                onPressed: () => Navigator.pop(context),
+                                icon: const Icon(Icons.arrow_back, size: 16),
+                                label: const Text('Go Back'),
+                              ),
+                            ],
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          
           // Legend
           Positioned(
             top: 16,
@@ -131,9 +260,8 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    _buildLegendItem(Colors.green, 'Available (5+ seats)'),
-                    _buildLegendItem(Colors.orange, 'Limited (1-4 seats)'),
-                    _buildLegendItem(Colors.red, 'Full (0 seats)'),
+                    _buildLegendItem(Colors.green, 'Available'),
+                    _buildLegendItem(Colors.red, 'Full'),
                   ],
                 ),
               ),
@@ -179,9 +307,8 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
     );
   }
 
-  Color _getJeepneyColor(int seats) {
-    if (seats >= 5) return Colors.green;
-    if (seats >= 1) return Colors.orange;
+  Color _getJeepneyColor(String status) {
+    if (status == 'Available') return Colors.green;
     return Colors.red;
   }
 
@@ -238,25 +365,23 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
             ),
             const SizedBox(height: 16),
             
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceAround,
-              children: [
-                _buildInfoCard(
-                  'ETA',
-                  '${jeepney['eta']} min',
-                  Icons.timer,
-                  Colors.blue,
-                ),
-                _buildInfoCard(
-                  'Available Seats',
-                  '${jeepney['seats']}',
-                  Icons.airline_seat_recline_normal,
-                  _getJeepneyColor(jeepney['seats']),
-                ),
-              ],
-            ),
-            
-            const SizedBox(height: 16),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.spaceAround,
+                children: [
+                  _buildInfoCard(
+                    'ETA',
+                    '${jeepney['eta']} min',
+                    Icons.timer,
+                    Colors.blue,
+                  ),
+                  _buildInfoCard(
+                    'Status',
+                    jeepney['status'],
+                    Icons.info,
+                    _getJeepneyColor(jeepney['status']),
+                  ),
+                ],
+              ),            const SizedBox(height: 16),
             
             SizedBox(
               width: double.infinity,
@@ -313,29 +438,36 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
   }
 
   void _showRouteFilter() {
+    // Get unique routes from active drivers
+    Set<String> uniqueRoutes = _jeepneyLocations
+        .map((jeepney) => jeepney['route'] as String)
+        .toSet();
+
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('Filter Routes'),
         content: Column(
           mainAxisSize: MainAxisSize.min,
-          children: [
-            CheckboxListTile(
-              title: const Text('Divisoria - Fairview'),
-              value: true,
-              onChanged: (value) {},
-            ),
-            CheckboxListTile(
-              title: const Text('Cubao - Antipolo'),
-              value: true,
-              onChanged: (value) {},
-            ),
-            CheckboxListTile(
-              title: const Text('Quiapo - Sta. Mesa'),
-              value: true,
-              onChanged: (value) {},
-            ),
-          ],
+          children: uniqueRoutes.isEmpty
+              ? [
+                  const SizedBox(height: 20),
+                  Icon(Icons.filter_list_off, size: 48, color: Colors.grey[400]),
+                  const SizedBox(height: 16),
+                  const Text(
+                    'No active routes to filter',
+                    style: TextStyle(color: Colors.grey),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 20),
+                ]
+              : uniqueRoutes
+                  .map((route) => CheckboxListTile(
+                        title: Text(route),
+                        value: true,
+                        onChanged: (value) {},
+                      ))
+                  .toList(),
         ),
         actions: [
           TextButton(
