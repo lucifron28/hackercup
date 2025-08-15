@@ -31,12 +31,14 @@ class DriverProvider extends ChangeNotifier {
   bool _isAcceptingPassengers = true;
   TripModel? _currentTrip;
   String? _currentTripId;
+  String _selectedRouteId = 'route_divisoria_fairview'; // Default route
   
   // Getters
   bool get isOnTrip => _isOnTrip;
   bool get isAcceptingPassengers => _isAcceptingPassengers;
   TripModel? get currentTrip => _currentTrip;
   String? get currentTripId => _currentTripId;
+  String get selectedRouteId => _selectedRouteId;
   
   // Distance tracking
   double _totalDistance = 0.0;
@@ -148,14 +150,14 @@ class DriverProvider extends ChangeNotifier {
       // Start trip in Firebase
       final tripId = await FirebaseRealtimeService.startTrip(
         _userData!.id, 
-        _userData!.email, // Using email as route for now
+        _selectedRouteId, // Use selected route
       );
 
       // Create local trip model
       _currentTrip = TripModel(
         id: tripId,
         driverId: _userData!.id,
-        route: _userData!.email, // Using email as route for now
+        route: _selectedRouteId, // Use selected route
         startTime: DateTime.now(),
         startLocation: position,
         status: TripStatus.active,
@@ -236,6 +238,13 @@ class DriverProvider extends ChangeNotifier {
       _logger.e('❌ Failed to toggle availability: $e');
       rethrow;
     }
+  }
+
+  /// Update selected route
+  void setSelectedRoute(String routeId) {
+    _selectedRouteId = routeId;
+    notifyListeners();
+    _logger.i('📍 Route selected: $routeId');
   }
 
   /// Get current location
