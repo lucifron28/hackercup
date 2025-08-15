@@ -181,13 +181,18 @@ class DriverProvider extends ChangeNotifier {
 
   /// End trip
   Future<void> endTrip() async {
-    if (_currentTripId == null || _userData?.id == null) return;
+    if (_currentTripId == null || _userData?.id == null) {
+      print('❌ PROVIDER: Cannot end trip - Missing tripId or userData');
+      return;
+    }
 
     try {
+      print('🏁 PROVIDER: Starting to end trip: $_currentTripId');
       _logger.i('🏁 Ending trip...');
 
       // End trip in Firebase
       await FirebaseRealtimeService.endTrip(_currentTripId!, _userData!.id);
+      print('✅ PROVIDER: Firebase trip ended successfully');
 
       // Update current trip
       if (_currentTrip != null) {
@@ -197,17 +202,22 @@ class DriverProvider extends ChangeNotifier {
           endLocation: await _getCurrentLocation(),
           totalDistance: _totalDistance,
         );
+        print('✅ PROVIDER: Current trip data updated');
       }
 
-      // Reset state
+      // Reset state - DRIVER GOES OFFLINE after trip ends
+      final oldTripId = _currentTripId;
       _isOnTrip = false;
-      _isAcceptingPassengers = false;
+      _isAcceptingPassengers = false; // Driver goes OFFLINE, not available
       _currentTripId = null;
+      
+      print('✅ PROVIDER: State reset - trip: $oldTripId ended, driver now OFFLINE (accepting: $_isAcceptingPassengers)');
       
       _clearError();
       notifyListeners();
 
       _logger.i('✅ Trip ended successfully');
+      print('✅ PROVIDER: Trip ended successfully: $oldTripId');
     } catch (e) {
       _setError('Failed to end trip: $e');
       _logger.e('❌ Failed to end trip: $e');
@@ -217,25 +227,36 @@ class DriverProvider extends ChangeNotifier {
 
   /// Toggle availability status
   Future<void> toggleAvailability() async {
-    if (_userData?.id == null) return;
+    if (_userData?.id == null) {
+      print('❌ TOGGLE: No user data available');
+      return;
+    }
 
     try {
+      print('🔄 TOGGLE: Current status - isAccepting: $_isAcceptingPassengers');
       _logger.i('🔄 Toggling availability...');
       
       final newStatus = _isAcceptingPassengers ? 'full' : 'available';
+      print('🔄 TOGGLE: New status will be: $newStatus');
       
-      // Update status in Firebase
+      // Update status in Firebase first
       await FirebaseRealtimeService.updateDriverStatus(_userData!.id, newStatus);
       
-      // Update local state
+      // Update local state only after successful Firebase update
       _isAcceptingPassengers = !_isAcceptingPassengers;
+      print('✅ TOGGLE: Local state updated - isAccepting: $_isAcceptingPassengers');
+      
       _clearError();
       notifyListeners();
 
       _logger.i('✅ Availability toggled to: $newStatus');
+      print('✅ TOGGLE: Availability successfully toggled to: $newStatus');
     } catch (e) {
+      print('❌ TOGGLE: Failed to toggle availability: $e');
       _setError('Failed to toggle availability: $e');
       _logger.e('❌ Failed to toggle availability: $e');
+      
+      // Show user-friendly error message
       rethrow;
     }
   }

@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:logger/logger.dart';
 import 'dart:async';
+import 'auth_service.dart';
 
 class FirebaseRealtimeService {
   static final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -14,13 +15,26 @@ class FirebaseRealtimeService {
     try {
       _logger.i('🚗 Starting real-time tracking for driver: $driverId');
 
+      // Verify user is authenticated
+      final currentUser = await AuthService.getCurrentUserData();
+      if (currentUser == null) {
+        throw Exception('User not authenticated');
+      }
+
+      print('🔐 DRIVER: Authenticated as ${currentUser.email} (${currentUser.id})');
+
       // Create or update driver's live location document
       await _firestore.collection('live_locations').doc(driverId).set({
         'driverId': driverId,
+        'driverName': currentUser.name,
+        'driverEmail': currentUser.email,
         'isOnline': true,
         'lastUpdated': FieldValue.serverTimestamp(),
         'status': 'available', // available, full, offline
+        'deviceInfo': 'mobile', // Add device identifier
       }, SetOptions(merge: true));
+
+      print('✅ DRIVER: Created live_locations document for $driverId');
 
       // Start location updates every 5 seconds
       const LocationSettings locationSettings = LocationSettings(
@@ -31,6 +45,7 @@ class FirebaseRealtimeService {
       _locationSubscription = Geolocator.getPositionStream(
         locationSettings: locationSettings,
       ).listen((Position position) {
+        print('📍 DRIVER: New position - Lat: ${position.latitude}, Lng: ${position.longitude}');
         _updateDriverLocation(driverId, position);
       });
 
@@ -40,6 +55,8 @@ class FirebaseRealtimeService {
       _logger.i('✅ Real-time tracking started for driver: $driverId');
     } catch (e) {
       _logger.e('❌ Failed to start tracking: $e');
+      print('❌ DRIVER: Failed to start tracking: $e');
+      rethrow;
     }
   }
 
@@ -65,17 +82,27 @@ class FirebaseRealtimeService {
   /// Update driver status (available/full)
   static Future<void> updateDriverStatus(String driverId, String status) async {
     try {
+      print('🔄 STATUS: Updating driver $driverId status to: $status');
+      
       final isAccepting = status == 'available';
       
-      await _firestore.collection('live_locations').doc(driverId).update({
+      final updateData = {
         'status': status, // available, full, offline
         'isAcceptingPassengers': isAccepting,
         'lastUpdated': FieldValue.serverTimestamp(),
-      });
+        'statusUpdateTime': DateTime.now().millisecondsSinceEpoch,
+      };
 
+      print('📦 STATUS: Update data: $updateData');
+      
+      await _firestore.collection('live_locations').doc(driverId).update(updateData);
+
+      print('✅ STATUS: Driver status successfully updated to: $status');
       _logger.i('✅ Driver status updated to: $status');
     } catch (e) {
+      print('❌ STATUS: Failed to update status: $e');
       _logger.e('❌ Failed to update status: $e');
+      rethrow; // Re-throw to let calling code handle the error
     }
   }
 
@@ -115,34 +142,80 @@ class FirebaseRealtimeService {
   /// End trip tracking
   static Future<void> endTrip(String tripId, String driverId) async {
     try {
-      await _firestore.collection('active_trips').doc(tripId).update({
+      print('🏁 TRIP: Starting to end trip: $tripId');
+      
+      // Get the active trip data
+      final tripDoc = await _firestore.collection('active_trips').doc(tripId).get();
+      if (!tripDoc.exists) {
+        print('❌ TRIP: Active trip not found: $tripId');
+        throw Exception('Trip not found');
+      }
+
+      final tripData = tripDoc.data()!;
+      print('📄 TRIP: Retrieved trip data for: $tripId');
+
+      // Update trip with completion info
+      final completedTripData = {
+        ...tripData,
         'status': 'completed',
         'endTime': FieldValue.serverTimestamp(),
+        'completedAt': DateTime.now().toIso8601String(),
+      };
+
+      // Move to trip_history
+      await _firestore.collection('trip_history').doc(tripId).set(completedTripData);
+      print('✅ TRIP: Moved trip to history: $tripId');
+
+      // Remove from active_trips
+      await _firestore.collection('active_trips').doc(tripId).delete();
+      print('✅ TRIP: Removed from active trips: $tripId');
+
+      // IMPORTANT: Set driver to OFFLINE after ending trip
+      await _firestore.collection('live_locations').doc(driverId).update({
+        'isOnline': false,
+        'status': 'offline',
+        'isAcceptingPassengers': false,
+        'lastUpdated': FieldValue.serverTimestamp(),
+        'tripEndTime': DateTime.now().millisecondsSinceEpoch,
       });
+      print('✅ TRIP: Driver set to OFFLINE - no longer tracking location');
 
-      // Update driver status to offline
-      await updateDriverStatus(driverId, 'offline');
+      // Stop heartbeat timer
+      _heartbeatTimer?.cancel();
+      print('✅ TRIP: Heartbeat timer stopped');
 
-      _logger.i('✅ Trip ended: $tripId');
+      _logger.i('✅ Trip ended successfully: $tripId');
     } catch (e) {
+      print('❌ TRIP: Failed to end trip $tripId: $e');
       _logger.e('❌ Failed to end trip: $e');
+      rethrow;
     }
   }
 
   /// Get real-time locations of all active drivers
   static Stream<List<Map<String, dynamic>>> getActiveDriversStream() {
+    print('📡 QUERY: Starting active drivers stream (public access)...');
+    
     return _firestore
         .collection('live_locations')
         .where('isOnline', isEqualTo: true)
-        .where('lastUpdated', isGreaterThan: 
-          Timestamp.fromDate(DateTime.now().subtract(Duration(minutes: 5))))
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs.map((doc) {
+      print('📡 QUERY: Received ${snapshot.docs.length} documents');
+      
+      final drivers = snapshot.docs.map((doc) {
         final data = doc.data();
         data['id'] = doc.id;
+        print('📄 DOC: ${doc.id} - Online: ${data['isOnline']}, Lat: ${data['latitude']}, Lng: ${data['longitude']}');
         return data;
       }).toList();
+      
+      print('📦 QUERY: Returning ${drivers.length} active drivers');
+      return drivers;
+    }).handleError((error) {
+      print('❌ QUERY: Stream error: $error');
+      _logger.e('Stream error: $error');
+      throw error;
     });
   }
 

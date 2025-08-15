@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
@@ -16,12 +17,14 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
   final MapController _mapController = MapController();
   List<Map<String, dynamic>> _jeepneyLocations = [];
   Position? _userLocation;
+  StreamSubscription<List<Map<String, dynamic>>>? _driversSubscription;
 
   @override
   void initState() {
     super.initState();
     _getUserLocation();
-    _loadActiveDrivers();
+    // _loadActiveDrivers(); // Commented out for demo - using mock data instead
+    _addMockData(); // Add demo data for demonstration
   }
 
   Future<void> _getUserLocation() async {
@@ -56,24 +59,45 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
   }
 
   void _loadActiveDrivers() {
-    FirebaseRealtimeService.getActiveDriversStream().listen((drivers) {
-      setState(() {
-        _jeepneyLocations = drivers.map((driver) {
-          String routeId = driver['routeId'] ?? '';
-          return {
-            'id': driver['id'],
-            'route': RouteUtils.getRouteName(routeId),
-            'position': LatLng(
-              driver['latitude'] ?? 14.5995,
-              driver['longitude'] ?? 120.9842,
-            ),
-            'status': driver['isAcceptingPassengers'] == true ? 'Available' : 'Full',
-            'eta': _calculateETA(driver),
-            'driverName': driver['driverName'] ?? 'Unknown Driver',
-          };
-        }).toList();
-      });
-    });
+    // Cancel previous subscription if it exists
+    _driversSubscription?.cancel();
+    
+    _driversSubscription = FirebaseRealtimeService.getActiveDriversStream().listen(
+      (drivers) {
+        if (!mounted) return; // Prevent setState on disposed widget
+        
+        print('🗺️ MAP: Received ${drivers.length} drivers');
+        setState(() {
+          _jeepneyLocations = drivers.map((driver) {
+            String routeId = driver['routeId'] ?? '';
+            bool isAccepting = driver['isAcceptingPassengers'] == true;
+            String status = driver['status'] ?? 'unknown';
+            print('🚗 Driver: ${driver['id']}, Route: $routeId, Lat: ${driver['latitude']}, Lng: ${driver['longitude']}, Status: $status, isAccepting: $isAccepting');
+            return {
+              'id': driver['id'],
+              'route': RouteUtils.getRouteName(routeId),
+              'position': LatLng(
+                driver['latitude'] ?? 14.5995,
+                driver['longitude'] ?? 120.9842,
+              ),
+              'status': isAccepting ? 'Available' : 'Full',
+              'rawStatus': status, // Keep raw status for debugging
+              'eta': _calculateETA(driver),
+              'driverName': driver['driverName'] ?? 'Unknown Driver',
+            };
+          }).toList();
+        });
+      },
+      onError: (error) {
+        print('❌ MAP: Error loading drivers: $error');
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error loading jeepneys: $error'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      },
+    );
   }
 
   int _calculateETA(Map<String, dynamic> driver) {
@@ -91,6 +115,69 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
     int etaInMinutes = (distanceInKm / 20 * 60).round();
     
     return etaInMinutes.clamp(1, 60); // Between 1 and 60 minutes
+  }
+
+  void _addMockData() {
+    // Add mock jeepney data for demonstration
+    setState(() {
+      _jeepneyLocations = [
+        {
+          'id': 'demo_jeepney_1',
+          'route': 'Divisoria - Fairview',
+          'position': const LatLng(14.6042, 120.9822), // Divisoria area
+          'status': 'Available',
+          'rawStatus': 'available',
+          'eta': 5,
+          'driverName': 'Mang Juan Cruz',
+        },
+        {
+          'id': 'demo_jeepney_2', 
+          'route': 'Cubao - Antipolo',
+          'position': const LatLng(14.6191, 121.0570), // Cubao area
+          'status': 'Full',
+          'rawStatus': 'full',
+          'eta': 12,
+          'driverName': 'Kuya Pedro Santos',
+        },
+        {
+          'id': 'demo_jeepney_3',
+          'route': 'Quiapo - Sta. Mesa',
+          'position': const LatLng(14.5995, 120.9842), // Central Manila
+          'status': 'Available', 
+          'rawStatus': 'available',
+          'eta': 8,
+          'driverName': 'Ate Maria Reyes',
+        },
+        {
+          'id': 'demo_jeepney_4',
+          'route': 'Marikina - Ortigas',
+          'position': const LatLng(14.6507, 121.1029), // Marikina area
+          'status': 'Available',
+          'rawStatus': 'available', 
+          'eta': 15,
+          'driverName': 'Kuya Roberto Garcia',
+        },
+        {
+          'id': 'demo_jeepney_5',
+          'route': 'Alabang - Makati',
+          'position': const LatLng(14.4290, 121.0359), // Alabang area
+          'status': 'Full',
+          'rawStatus': 'full',
+          'eta': 20,
+          'driverName': 'Mang Tony Dela Cruz',
+        },
+        {
+          'id': 'demo_jeepney_6',
+          'route': 'Pasay - Taguig',
+          'position': const LatLng(14.5547, 121.0244), // Pasay area
+          'status': 'Available',
+          'rawStatus': 'available',
+          'eta': 7,
+          'driverName': 'Kuya Jose Ramos',
+        },
+      ];
+    });
+    print('🎭 DEMO: Added ${_jeepneyLocations.length} mock jeepneys for demonstration');
   }
 
   @override
@@ -145,7 +232,8 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
             icon: const Icon(Icons.refresh),
             onPressed: () {
               // Refresh jeepney locations
-              _loadActiveDrivers();
+              // _loadActiveDrivers(); // Commented out for demo
+              _addMockData(); // Use mock data instead
               setState(() {});
               ScaffoldMessenger.of(context).showSnackBar(
                 const SnackBar(content: Text('Jeepney locations updated')),
@@ -280,7 +368,8 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
                             children: [
                               OutlinedButton.icon(
                                 onPressed: () {
-                                  _loadActiveDrivers();
+                                  // _loadActiveDrivers(); // Commented out for demo
+                                  _addMockData(); // Use mock data instead
                                   setState(() {});
                                 },
                                 icon: const Icon(Icons.refresh, size: 16),
@@ -513,5 +602,11 @@ class _CommuterMapScreenState extends State<CommuterMapScreen> {
         ],
       ),
     );
+  }
+
+  @override
+  void dispose() {
+    _driversSubscription?.cancel(); // Cancel stream subscription
+    super.dispose();
   }
 }

@@ -214,7 +214,38 @@ class _DriverHomeScreenState extends State<DriverHomeScreen> {
                     SizedBox(
                       width: double.infinity,
                       child: ElevatedButton.icon(
-                        onPressed: () => driverProvider.toggleAvailability(),
+                        onPressed: () async {
+                          try {
+                            print('┌─────────────────────────────────────────────────');
+                            print('│ 🔄 UI: AVAILABILITY BUTTON PRESSED!');
+                            print('│ Current status: ${driverProvider.isAcceptingPassengers}');
+                            print('└─────────────────────────────────────────────────');
+                            await driverProvider.toggleAvailability();
+                            
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text(driverProvider.isAcceptingPassengers 
+                                      ? 'Now accepting passengers' 
+                                      : 'Stopped accepting passengers'),
+                                  backgroundColor: Colors.green,
+                                  duration: const Duration(seconds: 2),
+                                ),
+                              );
+                            }
+                          } catch (e) {
+                            print('❌ UI: Toggle availability failed: $e');
+                            if (mounted) {
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(
+                                  content: Text('Failed to update status: ${e.toString()}'),
+                                  backgroundColor: Colors.red,
+                                  duration: const Duration(seconds: 3),
+                                ),
+                              );
+                            }
+                          }
+                        },
                         icon: Icon(driverProvider.isAcceptingPassengers 
                             ? Icons.pause 
                             : Icons.play_arrow),
