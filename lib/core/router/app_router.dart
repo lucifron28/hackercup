@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-import '../../modules/auth/screens/login_screen.dart';
 import '../../modules/auth/screens/role_selection_screen.dart';
 import '../../modules/auth/screens/driver_login_screen.dart';
 import '../../modules/auth/screens/driver_register_screen.dart';
@@ -12,7 +11,6 @@ import '../../modules/driver/screens/driver_earnings_screen.dart';
 import '../../modules/commuter/screens/commuter_home_screen.dart';
 import '../../modules/commuter/screens/commuter_map_screen.dart';
 import '../../modules/commuter/screens/route_list_screen.dart';
-import '../../modules/lgu/screens/lgu_dashboard_screen.dart';
 
 class AppRouter {
   static final GoRouter router = GoRouter(
@@ -83,7 +81,6 @@ class AppRouter {
       ),
     ),
     routes: [
-      // Main/Home route that redirects to role selection
       GoRoute(
         path: '/',
         redirect: (context, state) => '/role-selection',
@@ -98,11 +95,6 @@ class AppRouter {
       ),
       
       // Auth routes
-      GoRoute(
-        path: '/login',
-        name: 'login',
-        builder: (context, state) => const LoginScreen(),
-      ),
       GoRoute(
         path: '/role-selection',
         name: 'role-selection',
@@ -163,13 +155,6 @@ class AppRouter {
           ),
         ],
       ),
-      
-      // LGU routes
-      GoRoute(
-        path: '/lgu',
-        name: 'lgu-dashboard',
-        builder: (context, state) => const LguDashboardScreen(),
-      ),
     ],
   );
 
@@ -192,14 +177,6 @@ class AppRouter {
   
   static void goToCommuterApp(BuildContext context) {
     context.go('/commuter');
-  }
-  
-  static void goToLguApp(BuildContext context) {
-    context.go('/lgu');
-  }
-  
-  static void goToLogin(BuildContext context) {
-    context.go('/login');
   }
   
   static void goToRoleSelection(BuildContext context) {

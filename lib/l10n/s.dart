@@ -151,12 +151,6 @@ abstract class S {
   /// **'Commuter App'**
   String get commuterApp;
 
-  /// No description provided for @lguDispatcher.
-  ///
-  /// In en, this message translates to:
-  /// **'LGU Dispatcher'**
-  String get lguDispatcher;
-
   /// No description provided for @startTrip.
   ///
   /// In en, this message translates to:

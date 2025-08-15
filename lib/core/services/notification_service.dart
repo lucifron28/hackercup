@@ -9,7 +9,6 @@ class NotificationService {
     try {
       _firebaseMessaging = FirebaseMessaging.instance;
       
-      // Request permission for notifications
       NotificationSettings settings = await _firebaseMessaging!.requestPermission(
         alert: true,
         badge: true,
@@ -23,18 +22,20 @@ class NotificationService {
         _logger.w('User declined or has not accepted notification permissions');
       }
 
-      // Handle background messages
       FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-      // Handle foreground messages
       FirebaseMessaging.onMessage.listen(_handleForegroundMessage);
 
-      // Handle notification opened app
       FirebaseMessaging.onMessageOpenedApp.listen(_handleMessageOpenedApp);
 
-      // Get FCM token for this device
       String? token = await _firebaseMessaging!.getToken();
       _logger.i('FCM Token: $token');
+      
+      showNotification(
+        title: '🚌 Jeepney Tracker Ready!',
+        body: 'Real-time notifications active for SDG 11.2',
+      );
+      
     } catch (e) {
       _logger.e('Failed to initialize Firebase Messaging: $e');
     }
@@ -84,8 +85,37 @@ class NotificationService {
     required String body,
     String? payload,
   }) {
-    _logger.i('Notification: $title - $body');
+    _logger.i('📱 NOTIFICATION: $title - $body');
     // In a production app, this would trigger a local notification
     // For now, we just log it
+    print('🔔 JEEPNEY TRACKER NOTIFICATION 🔔');
+    print('Title: $title');
+    print('Message: $body');
+    if (payload != null) print('Payload: $payload');
+  }
+
+  // Demo methods for testing notifications
+  static void sendJeepneyArrivalNotification(String route, int eta) {
+    showNotification(
+      title: '🚌 Jeepney Approaching!',
+      body: '$route route jeepney arriving in $eta minutes',
+      payload: 'route:$route,eta:$eta',
+    );
+  }
+
+  static void sendEmergencyAlert(String driverName, String location) {
+    showNotification(
+      title: '🚨 Emergency Alert',
+      body: 'Driver $driverName needs assistance at $location',
+      payload: 'emergency:$location',
+    );
+  }
+
+  static void sendRouteUpdate(String route, String status) {
+    showNotification(
+      title: '📍 Route Update',
+      body: '$route route is now $status',
+      payload: 'route_update:$route:$status',
+    );
   }
 }
