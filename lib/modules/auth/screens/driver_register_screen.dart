@@ -147,10 +147,19 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
                     ),
                     child: Column(
                       children: [
-                        Icon(
-                          Icons.directions_bus,
-                          size: 64,
-                          color: Colors.orange.shade600,
+                        Image.asset(
+                          'assets/icons/logo.png',
+                          width: 64,
+                          height: 64,
+                          fit: BoxFit.contain,
+                          errorBuilder: (context, error, stackTrace) {
+                            // Fallback to icon if image fails to load
+                            return Icon(
+                              Icons.directions_bus,
+                              size: 64,
+                              color: Colors.orange.shade600,
+                            );
+                          },
                         ),
                         const SizedBox(height: 8),
                         Text(
