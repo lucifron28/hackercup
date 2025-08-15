@@ -12,8 +12,8 @@ class _DriverTripScreenState extends State<DriverTripScreen> {
   final String _currentRoute = 'Divisoria - Fairview';
   final Duration _tripDuration = const Duration(minutes: 45);
   final double _currentSpeed = 25.0;
-  int _passengersOnboard = 8;
   bool _isGPSEnabled = true;
+  bool _isAcceptingPassengers = true;
 
   @override
   Widget build(BuildContext context) {
@@ -68,9 +68,9 @@ class _DriverTripScreenState extends State<DriverTripScreen> {
                           Icons.speed,
                         ),
                         _buildInfoChip(
-                          'Passengers',
-                          '$_passengersOnboard',
-                          Icons.people,
+                          'Status',
+                          _isAcceptingPassengers ? 'Available' : 'Full',
+                          _isAcceptingPassengers ? Icons.check_circle : Icons.block,
                         ),
                       ],
                     ),
@@ -140,61 +140,62 @@ class _DriverTripScreenState extends State<DriverTripScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'Passenger Management',
+                      'Availability Status',
                       style: Theme.of(context).textTheme.titleLarge,
                     ),
                     const SizedBox(height: 16),
                     
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        ElevatedButton.icon(
-                          onPressed: _passengersOnboard < 14 ? () {
-                            setState(() {
-                              _passengersOnboard++;
-                            });
-                          } : null,
-                          icon: const Icon(Icons.person_add),
-                          label: const Text('Board'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.green,
-                            foregroundColor: Colors.white,
-                          ),
+                    SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                        onPressed: () {
+                          setState(() {
+                            _isAcceptingPassengers = !_isAcceptingPassengers;
+                          });
+                        },
+                        icon: Icon(_isAcceptingPassengers 
+                            ? Icons.pause 
+                            : Icons.play_arrow),
+                        label: Text(_isAcceptingPassengers 
+                            ? 'Stop Accepting Passengers (Full)' 
+                            : 'Start Accepting Passengers (Available)'),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: _isAcceptingPassengers 
+                              ? Colors.orange 
+                              : Colors.green,
+                          foregroundColor: Colors.white,
+                          padding: const EdgeInsets.symmetric(vertical: 12),
                         ),
-                        ElevatedButton.icon(
-                          onPressed: _passengersOnboard > 0 ? () {
-                            setState(() {
-                              _passengersOnboard--;
-                            });
-                          } : null,
-                          icon: const Icon(Icons.person_remove),
-                          label: const Text('Alight'),
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: Colors.orange,
-                            foregroundColor: Colors.white,
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
                     
                     const SizedBox(height: 16),
                     
-                    // Seat Indicator
-                    Text(
-                      'Available Seats: ${14 - _passengersOnboard}/14',
-                      style: Theme.of(context).textTheme.titleMedium,
-                      textAlign: TextAlign.center,
+                    // Trip Status Indicator
+                    Container(
+                      padding: const EdgeInsets.all(12),
+                      decoration: BoxDecoration(
+                        color: Colors.green.shade50,
+                        borderRadius: BorderRadius.circular(8),
+                        border: Border.all(color: Colors.green.shade200),
+                      ),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          Icon(Icons.check_circle, color: Colors.green),
+                          const SizedBox(width: 8),
+                          Text(
+                            'Trip in Progress',
+                            style: TextStyle(
+                              color: Colors.green.shade700,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                     
                     const SizedBox(height: 8),
-                    
-                    LinearProgressIndicator(
-                      value: _passengersOnboard / 14,
-                      backgroundColor: Colors.grey[300],
-                      valueColor: AlwaysStoppedAnimation<Color>(
-                        _passengersOnboard > 10 ? Colors.red : Colors.green,
-                      ),
-                    ),
                   ],
                 ),
               ),
