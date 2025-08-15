@@ -10,7 +10,6 @@
   
   "driverApp": "Driver App",
   "commuterApp": "Commuter App",
-  "lguDispatcher": "LGU Dispatcher",
   
   "startTrip": "Start Trip",
   "endTrip": "End Trip",
