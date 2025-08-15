@@ -26,7 +26,6 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
   bool _obscureConfirmPassword = true;
   String? _errorMessage;
   String? _selectedRoute;
-  int _passengerCapacity = 14;
 
   final List<Map<String, String>> _routes = [
     {'id': 'route_divisoria_fairview', 'name': 'Divisoria - Fairview'},
@@ -230,38 +229,32 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
 
                   const SizedBox(height: 16),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildInputCard(
-                          controller: _emailController,
-                          label: 'Email',
-                          icon: Icons.email,
-                          keyboardType: TextInputType.emailAddress,
-                          validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Please enter email';
-                            if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value!)) {
-                              return 'Invalid email';
-                            }
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildInputCard(
-                          controller: _phoneController,
-                          label: 'Phone',
-                          icon: Icons.phone,
-                          keyboardType: TextInputType.phone,
-                          validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Required';
-                            if (value!.length < 10) return 'Invalid phone';
-                            return null;
-                          },
-                        ),
-                      ),
-                    ],
+                  _buildInputCard(
+                    controller: _emailController,
+                    label: 'Email Address',
+                    icon: Icons.email,
+                    keyboardType: TextInputType.emailAddress,
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) return 'Please enter your email address';
+                      if (!RegExp(r'^[^@]+@[^@]+\.[^@]+').hasMatch(value!)) {
+                        return 'Please enter a valid email address';
+                      }
+                      return null;
+                    },
+                  ),
+
+                  const SizedBox(height: 16),
+
+                  _buildInputCard(
+                    controller: _phoneController,
+                    label: 'Phone Number',
+                    icon: Icons.phone,
+                    keyboardType: TextInputType.phone,
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) return 'Please enter your phone number';
+                      if (value!.length < 10) return 'Please enter a valid phone number';
+                      return null;
+                    },
                   ),
 
                   const SizedBox(height: 24),
@@ -317,24 +310,14 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
 
                   const SizedBox(height: 16),
 
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildInputCard(
-                          controller: _jeepneyModelController,
-                          label: 'Jeepney Model/Year',
-                          icon: Icons.build,
-                          validator: (value) {
-                            if (value?.isEmpty ?? true) return 'Required';
-                            return null;
-                          },
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildCapacitySelector(),
-                      ),
-                    ],
+                  _buildInputCard(
+                    controller: _jeepneyModelController,
+                    label: 'Jeepney Model/Year',
+                    icon: Icons.build,
+                    validator: (value) {
+                      if (value?.isEmpty ?? true) return 'Required';
+                      return null;
+                    },
                   ),
 
                   const SizedBox(height: 16),
@@ -529,36 +512,6 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
     );
   }
 
-  Widget _buildCapacitySelector() {
-    return Card(
-      elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(
-        padding: const EdgeInsets.all(16),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              children: [
-                Icon(Icons.airline_seat_recline_normal, color: Colors.orange.shade600),
-                const SizedBox(width: 8),
-                Text('Capacity: $_passengerCapacity', style: const TextStyle(fontWeight: FontWeight.bold)),
-              ],
-            ),
-            Slider(
-              value: _passengerCapacity.toDouble(),
-              min: 10,
-              max: 20,
-              divisions: 10,
-              label: '$_passengerCapacity passengers',
-              onChanged: (value) => setState(() => _passengerCapacity = value.round()),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
   Widget _buildRouteSelector() {
     return Card(
       elevation: 8,
@@ -581,15 +534,21 @@ class _DriverRegisterScreenState extends State<DriverRegisterScreen> {
             const SizedBox(height: 12),
             DropdownButtonFormField<String>(
               value: _selectedRoute,
+              isExpanded: true,
               decoration: const InputDecoration(
                 hintText: 'Choose your regular jeepney route',
                 border: OutlineInputBorder(),
-                contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 8),
               ),
               items: _routes.map((route) {
                 return DropdownMenuItem(
                   value: route['id'],
-                  child: Text(route['name']!),
+                  child: Text(
+                    route['name']!,
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 1,
+                    style: const TextStyle(fontSize: 14),
+                  ),
                 );
               }).toList(),
               onChanged: (value) => setState(() => _selectedRoute = value),
