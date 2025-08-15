@@ -244,13 +244,20 @@ class AuthService {
     try {
       print('🚪 SIGN OUT STARTED');
       
-      final userData = await getCurrentUserData();
-      if (userData?.userType == 'driver') {
-        print('🚗 Updating driver status to offline...');
-        await updateDriverOnlineStatus(false);
+      // Try to update driver status but don't let it block logout
+      try {
+        final userData = await getCurrentUserData().timeout(Duration(seconds: 5));
+        if (userData?.userType == 'driver') {
+          print('🚗 Updating driver status to offline...');
+          await updateDriverOnlineStatus(false).timeout(Duration(seconds: 8));
+        }
+      } catch (e) {
+        print('⚠️ Failed to update driver status during logout: $e');
+        // Continue with logout anyway
       }
       
-      await _auth.signOut();
+      // Always attempt Firebase Auth signout
+      await _auth.signOut().timeout(Duration(seconds: 10));
       print('✅ USER SIGNED OUT SUCCESSFULLY');
       _logger.i('User signed out successfully');
     } catch (e) {
