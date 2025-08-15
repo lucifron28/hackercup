@@ -154,10 +154,19 @@ class _DriverLoginScreenState extends State<DriverLoginScreen> {
                       ),
                       child: Column(
                         children: [
-                          Icon(
-                            Icons.directions_bus,
-                            size: 72,
-                            color: Colors.orange.shade600,
+                          Image.asset(
+                            'assets/icons/logo.png',
+                            width: 72,
+                            height: 72,
+                            fit: BoxFit.contain,
+                            errorBuilder: (context, error, stackTrace) {
+                              // Fallback to icon if image fails to load
+                              return Icon(
+                                Icons.directions_bus,
+                                size: 72,
+                                color: Colors.orange.shade600,
+                              );
+                            },
                           ),
                           const SizedBox(height: 8),
                           Container(
