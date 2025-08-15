@@ -164,10 +164,19 @@ class _RoleSelectionScreenState extends State<RoleSelectionScreen> {
                               color: Colors.white.withAlpha(38),
                               borderRadius: BorderRadius.circular(25),
                             ),
-                            child: const Icon(
-                              Icons.directions_bus_rounded,
-                              size: 60,
-                              color: Colors.white,
+                            child: Image.asset(
+                              'assets/icons/logo.png',
+                              width: 60,
+                              height: 60,
+                              fit: BoxFit.contain,
+                              errorBuilder: (context, error, stackTrace) {
+                                // Fallback to icon if image fails to load
+                                return const Icon(
+                                  Icons.directions_bus_rounded,
+                                  size: 60,
+                                  color: Colors.white,
+                                );
+                              },
                             ),
                           ),
                           
