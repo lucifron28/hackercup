@@ -1,13 +1,18 @@
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 
+import 'firebase_options.dart';
 import 'core/router/app_router.dart';
 import 'core/services/notification_service.dart';
 import 'core/theme/app_theme.dart';
+import 'core/providers/auth_provider.dart';
+import 'core/providers/location_provider.dart';
+import 'core/providers/firebase_realtime_provider.dart';
+import 'core/providers/driver_provider.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -16,7 +21,10 @@ void main() async {
   if (defaultTargetPlatform == TargetPlatform.android || 
       defaultTargetPlatform == TargetPlatform.iOS) {
     try {
-      await Firebase.initializeApp();
+      await Firebase.initializeApp(
+        options: DefaultFirebaseOptions.currentPlatform,
+      );
+      debugPrint('Firebase initialized successfully');
       // Initialize Notifications only if Firebase is available
       await NotificationService.initialize();
     } catch (e) {
@@ -28,19 +36,33 @@ void main() async {
   await Hive.initFlutter();
   
   runApp(
-    const ProviderScope(
-      child: JeepneyTrackerApp(),
+    MultiProvider(
+      providers: [
+        // Core Providers
+        ChangeNotifierProvider<AuthProvider>(
+          create: (context) => AuthProvider(),
+        ),
+        ChangeNotifierProvider<LocationProvider>(
+          create: (context) => LocationProvider(),
+        ),
+        ChangeNotifierProvider<FirebaseRealtimeProvider>(
+          create: (context) => FirebaseRealtimeProvider(),
+        ),
+        // Driver Provider
+        ChangeNotifierProvider<DriverProvider>(
+          create: (context) => DriverProvider(),
+        ),
+      ],
+      child: const JeepneyTrackerApp(),
     ),
   );
 }
 
-class JeepneyTrackerApp extends ConsumerWidget {
+class JeepneyTrackerApp extends StatelessWidget {
   const JeepneyTrackerApp({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final router = ref.watch(appRouterProvider);
-    
+  Widget build(BuildContext context) {
     return MaterialApp.router(
       title: 'Jeepney Tracker',
       theme: AppTheme.lightTheme,
@@ -59,7 +81,7 @@ class JeepneyTrackerApp extends ConsumerWidget {
       ],
       
       // Router
-      routerConfig: router,
+      routerConfig: AppRouter.router,
       
       debugShowCheckedModeBanner: false,
     );
