@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
+
 import '../../../core/services/firebase_realtime_service.dart';
+import '../../../core/utils/route_utils.dart';
 
 class RouteListScreen extends StatefulWidget {
   const RouteListScreen({super.key});
@@ -24,11 +26,13 @@ class _RouteListScreenState extends State<RouteListScreen> {
       Map<String, List<Map<String, dynamic>>> routeGroups = {};
       
       for (var driver in drivers) {
-        String routeId = driver['routeId'] ?? 'Unknown Route';
-        if (!routeGroups.containsKey(routeId)) {
-          routeGroups[routeId] = [];
+        String routeId = driver['routeId'] ?? '';
+        String routeName = RouteUtils.getRouteName(routeId);
+        
+        if (!routeGroups.containsKey(routeName)) {
+          routeGroups[routeName] = [];
         }
-        routeGroups[routeId]!.add(driver);
+        routeGroups[routeName]!.add(driver);
       }
       
       // Convert to route list
@@ -45,9 +49,9 @@ class _RouteListScreenState extends State<RouteListScreen> {
       ];
       
       int colorIndex = 0;
-      routeGroups.forEach((routeId, routeDrivers) {
+      routeGroups.forEach((routeName, routeDrivers) {
         routes.add({
-          'name': routeId,
+          'name': routeName,
           'fare': 12.00, // Default fare - could be configured per route
           'distance': '25.0 km', // Default distance - could be calculated
           'duration': '40-50 min', // Default duration - could be calculated
@@ -213,18 +217,6 @@ class _RouteListScreenState extends State<RouteListScreen> {
                                         icon: const Icon(Icons.location_on, size: 16),
                                         label: const Text('Track', style: TextStyle(fontSize: 12)),
                                         style: OutlinedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(vertical: 8),
-                                        ),
-                                      ),
-                                    ),
-                                    const SizedBox(width: 8),
-                                    Expanded(
-                                      child: OutlinedButton.icon(
-                                        onPressed: () => _sendSMSQuery(route),
-                                        icon: const Icon(Icons.sms, size: 16),
-                                        label: const Text('SMS', style: TextStyle(fontSize: 12)),
-                                        style: OutlinedButton.styleFrom(
-                                          padding: const EdgeInsets.symmetric(vertical: 8),
                                         ),
                                       ),
                                     ),
@@ -377,7 +369,6 @@ class _RouteListScreenState extends State<RouteListScreen> {
                       ),
                       const SizedBox(height: 8),
                       Text(
-                        '• Use SMS queries for offline route information\n'
                         '• Check back during peak hours (6-9 AM, 5-8 PM)\n'
                         '• Contact local transport office for route updates',
                         style: TextStyle(
@@ -481,30 +472,16 @@ class _RouteListScreenState extends State<RouteListScreen> {
             
             const SizedBox(height: 20),
             
-            Row(
-              children: [
-                Expanded(
-                  child: ElevatedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _trackRoute(route);
-                    },
-                    icon: const Icon(Icons.location_on),
-                    label: const Text('Track on Map'),
-                  ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pop(context);
-                      _sendSMSQuery(route);
-                    },
-                    icon: const Icon(Icons.sms),
-                    label: const Text('SMS Query'),
-                  ),
-                ),
-              ],
+            SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _trackRoute(route);
+                },
+                icon: const Icon(Icons.location_on),
+                label: const Text('Track on Map'),
+              ),
             ),
           ],
         ),
@@ -555,59 +532,4 @@ class _RouteListScreenState extends State<RouteListScreen> {
     );
   }
 
-  void _sendSMSQuery(Map<String, dynamic> route) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('SMS Query'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text('Send this SMS to get next 3 ETAs:'),
-            const SizedBox(height: 12),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: Colors.blue[50],
-                borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: Colors.blue[200]!),
-              ),
-              child: Text(
-                'JEEP ${route['name']}',
-                style: const TextStyle(
-                  fontFamily: 'monospace',
-                  fontWeight: FontWeight.bold,
-                ),
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'SMS rates may apply. Works offline.',
-              style: TextStyle(
-                fontSize: 12,
-                color: Colors.grey[600],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Close'),
-          ),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.pop(context);
-              // In a real app, this would open the SMS app
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Opening SMS app...')),
-              );
-            },
-            child: const Text('Send SMS'),
-          ),
-        ],
-      ),
-    );
-  }
 }
