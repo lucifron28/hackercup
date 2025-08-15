@@ -36,9 +36,6 @@ class AppLocalizationsTl extends AppLocalizations {
   String get commuterApp => 'Commuter App';
 
   @override
-  String get lguDispatcher => 'LGU Dispatcher';
-
-  @override
   String get startTrip => 'Simulan ang Biyahe';
 
   @override
